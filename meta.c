@@ -1,8 +1,15 @@
 #define _GNU_SOURCE
 #include <GL/glfw.h>
+#ifdef stdalloc
 #include <stdlib.h>
-#include <stdio.h>
+#else
+#include <sys/unistd.h>
+#include <sys/mman.h>
+#endif
 #include <string.h>
+#ifdef bench
+#include <stdio.h>
+#endif
 #ifdef xmmintrin
 #include <xmmintrin.h>
 #else
@@ -25,7 +32,11 @@ int main(int argc,char**argv){
 	glfwInit();
 	if(!glfwOpenWindow(511,511,0,0,0,0,0,0,GLFW_WINDOW))return 1;
 	glOrtho(0,511,511,0,1,-1);
-	H=malloc(sizeof(int)*3);
+	#ifdef stdalloc
+	H=mmap(0,sysconf(_SC_PAGE_SIZE),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+	#else
+	H=malloc(4000);
+	#endif
 	unsigned char col[256][3];
 	for(int i=0;i<256;i++){
 		col[i][0]=i*i*i>>16;
@@ -33,7 +44,9 @@ int main(int argc,char**argv){
 		col[i][2]=i;
 	}
 	for(;;){
+		#ifdef bench
 		double t=glfwGetTime();
+		#endif
 		glfwGetMousePos(H+ms-3,H+ms-2);
 		#pragma omp parallel for
 		for(int x=0;x<512;x++)
@@ -58,15 +71,27 @@ int main(int argc,char**argv){
 				memcpy(manor[511-y][x],col[d>255?255:(unsigned char)d],3);
 			}
 		glDrawPixels(511,511,GL_RGB,GL_UNSIGNED_BYTE,manor);
+		#ifdef bench
 		printf("%f\n",glfwGetTime()-t);
+		#endif
 		int pl=glfwGetMouseButton(GLFW_MOUSE_BUTTON_LEFT),pr=glfwGetMouseButton(GLFW_MOUSE_BUTTON_RIGHT);
 		glfwSwapBuffers();
 		H[ms-1]+=250*glfwGetMouseWheel();
 		glfwSetMouseWheel(0);
-		if(!pr&&glfwGetMouseButton(GLFW_MOUSE_BUTTON_RIGHT)&&ms>2)H=realloc(H,sizeof(int)*(ms-=3));
+		if(!pr&&glfwGetMouseButton(GLFW_MOUSE_BUTTON_RIGHT)&&ms>3){
+			int c=0;
+			unsigned long long d=-1ULL;
+			for(int i=0;i<ms-3;i+=3){
+				if((H[i]-H[ms-3])*(H[i]-H[ms-3])+(H[i+1]-H[ms-2])*(H[i+1]-H[ms-2])<d){
+					c=i;
+					d=(H[i]-H[ms-3])*(H[i]-H[ms-3])+(H[i+1]-H[ms-2])*(H[i+1]-H[ms-2]);
+				}
+			}
+			memmove(H+c,H+c+3,((ms-=3)-c)*sizeof(int));
+		}
 		if(!pl&&glfwGetMouseButton(GLFW_MOUSE_BUTTON_LEFT)){
-			H=realloc(H,sizeof(int)*(ms+=3));
-			memcpy(H+ms-3,H+ms-6,sizeof(int)*3);
+			memcpy(H+ms,H+ms-3,sizeof(int)*3);
+			ms+=3;
 		}
 		if(glfwGetKey(GLFW_KEY_ESC)||!glfwGetWindowParam(GLFW_OPENED))return 0;
 	}
