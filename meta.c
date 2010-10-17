@@ -10,7 +10,7 @@
 #ifdef bench
 #include <stdio.h>
 #endif
-#ifdef xmmintrin
+#ifdef __SSE__
 #include <xmmintrin.h>
 #else
 #ifdef x5f3759df
@@ -39,7 +39,7 @@ int main(int argc,char**argv){
 	if(!glfwOpenWindow(WID,HEI,0,0,0,0,0,0,GLFW_WINDOW))return 1;
 	glOrtho(0,WID,HEI,0,1,-1);
 	#ifdef stdalloc
-	H=malloc(4000);
+	H=calloc(1,4000);
 	#else
 	H=mmap(0,sysconf(_SC_PAGE_SIZE),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
 	#endif
@@ -58,14 +58,8 @@ int main(int argc,char**argv){
 		for(int y=0;y<HEI;y++)
 			for(int x=0;x<WID;x++){
 				float d=0;
-				#ifdef xmmintrin
-				int i=0;
-				for(;(ms-i)%12&&i<ms;i+=3){
-					float f __attribute__((aligned(16)));
-					_mm_store_ss(&f,_mm_rsqrt_ss(_mm_set1_ps((H[i]-x)*(H[i]-x)+(H[i+1]-y)*(H[i+1]-y))));
-					d+=H[i+2]*f;
-				}
-				for(;i<ms;i+=12){
+				#ifdef __SSE__
+				for(int i=0;i<ms;i+=12){
 					float f[4]__attribute__((aligned(16)))={};
 					for(int j=0;j<4;j++)f[j]=(H[i+j*3]-x)*(H[i+j*3]-x)+(H[i+j*3+1]-y)*(H[i+j*3+1]-y);
 					_mm_store_ps(f,_mm_rsqrt_ps(_mm_load_ps(f)));
