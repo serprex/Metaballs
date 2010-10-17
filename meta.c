@@ -68,7 +68,7 @@ int main(int argc,char**argv){
 				#else
 				for(int i=0;i<ms;i+=3)d+=H[i+2]*rsqrt((H[i]-x)*(H[i]-x)+(H[i+1]-y)*(H[i+1]-y));
 				#endif
-				memcpy(manor[511-y][x],col[d>255?255:(unsigned char)d],3);
+				memcpy(manor[511-y][x],col[d>255?255:d<0?0:(unsigned char)d],3);
 			}
 		glDrawPixels(511,511,GL_RGB,GL_UNSIGNED_BYTE,manor);
 		#ifdef bench
@@ -82,9 +82,10 @@ int main(int argc,char**argv){
 			int c=0;
 			unsigned long long d=-1ULL;
 			for(int i=0;i<ms-3;i+=3){
-				if((H[i]-H[ms-3])*(H[i]-H[ms-3])+(H[i+1]-H[ms-2])*(H[i+1]-H[ms-2])<d){
+				int h=(H[i]-H[ms-3])*(H[i]-H[ms-3])+(H[i+1]-H[ms-2])*(H[i+1]-H[ms-2]);
+				if(h<d){
 					c=i;
-					d=(H[i]-H[ms-3])*(H[i]-H[ms-3])+(H[i+1]-H[ms-2])*(H[i+1]-H[ms-2]);
+					d=h;
 				}
 			}
 			memmove(H+c,H+c+3,((ms-=3)-c)*sizeof(int));
