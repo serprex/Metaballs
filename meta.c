@@ -25,13 +25,19 @@ static float rsqrt(float x){
 #endif
 }
 #endif
-unsigned char manor[512][512][3];
+#ifndef WID
+#define WID 1024
+#endif
+#ifndef HEI
+#define HEI 1024
+#endif
+unsigned char manor[HEI][WID][3];
 int*H;
 unsigned ms=3;
 int main(int argc,char**argv){
 	glfwInit();
-	if(!glfwOpenWindow(511,511,0,0,0,0,0,0,GLFW_WINDOW))return 1;
-	glOrtho(0,511,511,0,1,-1);
+	if(!glfwOpenWindow(WID,HEI,0,0,0,0,0,0,GLFW_WINDOW))return 1;
+	glOrtho(0,WID,HEI,0,1,-1);
 	#ifdef stdalloc
 	H=malloc(4000);
 	#else
@@ -49,8 +55,8 @@ int main(int argc,char**argv){
 		#endif
 		glfwGetMousePos(H+ms-3,H+ms-2);
 		#pragma omp parallel for
-		for(int x=0;x<512;x++)
-			for(int y=0;y<512;y++){
+		for(int y=0;y<HEI;y++)
+			for(int x=0;x<WID;x++){
 				float d=0;
 				#ifdef xmmintrin
 				int i=0;
@@ -68,15 +74,15 @@ int main(int argc,char**argv){
 				#else
 				for(int i=0;i<ms;i+=3)d+=H[i+2]*rsqrt((H[i]-x)*(H[i]-x)+(H[i+1]-y)*(H[i+1]-y));
 				#endif
-				memcpy(manor[511-y][x],col[d>255?255:d<0?0:(unsigned char)d],3);
+				memcpy(manor[HEI-y-1][x],col[d>255?255:d<0?0:(unsigned char)d],3);
 			}
-		glDrawPixels(511,511,GL_RGB,GL_UNSIGNED_BYTE,manor);
+		glDrawPixels(WID,HEI,GL_RGB,GL_UNSIGNED_BYTE,manor);
 		#ifdef bench
 		printf("%f\n",glfwGetTime()-t);
 		#endif
 		int pl=glfwGetMouseButton(GLFW_MOUSE_BUTTON_LEFT),pr=glfwGetMouseButton(GLFW_MOUSE_BUTTON_RIGHT);
 		glfwSwapBuffers();
-		H[ms-1]+=250*glfwGetMouseWheel();
+		H[ms-1]+=glfwGetMouseWheel()<<8;
 		glfwSetMouseWheel(0);
 		if(!pr&&glfwGetMouseButton(GLFW_MOUSE_BUTTON_RIGHT)&&ms>3){
 			int c=0;
