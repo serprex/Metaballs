@@ -33,9 +33,9 @@ int main(int argc,char**argv){
 	if(!glfwOpenWindow(511,511,0,0,0,0,0,0,GLFW_WINDOW))return 1;
 	glOrtho(0,511,511,0,1,-1);
 	#ifdef stdalloc
-	H=mmap(0,sysconf(_SC_PAGE_SIZE),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
-	#else
 	H=malloc(4000);
+	#else
+	H=mmap(0,sysconf(_SC_PAGE_SIZE),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
 	#endif
 	unsigned char col[256][3];
 	for(int i=0;i<256;i++){
