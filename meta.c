@@ -38,6 +38,7 @@ int main(int argc,char**argv){
 	glfwInit();
 	if(!glfwOpenWindow(WID,HEI,0,0,0,0,0,0,GLFW_WINDOW))return 1;
 	glOrtho(0,WID,HEI,0,1,-1);
+	glPixelStorei(GL_UNPACK_ALIGNMENT,1);
 	#ifdef stdalloc
 	H=calloc(1,4000);
 	#else
@@ -89,6 +90,7 @@ int main(int argc,char**argv){
 				}
 			}
 			memmove(H+c,H+c+3,((ms-=3)-c)*sizeof(int));
+			memset(H+ms,0,sizeof(int)*3);
 		}
 		if(!pl&&glfwGetMouseButton(GLFW_MOUSE_BUTTON_LEFT)){
 			memcpy(H+ms,H+ms-3,sizeof(int)*3);
