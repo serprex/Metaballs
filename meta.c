@@ -51,7 +51,7 @@ void GLFWCALL mcb(int b,int a){
 		Y[ms]=Y[ms-1];
 		F[ms]=F[ms-1];
 		ms++;
-	}else if(a==GLFW_PRESS&&b==GLFW_MOUSE_BUTTON_RIGHT&&ms>3){
+	}else if(a==GLFW_PRESS&&b==GLFW_MOUSE_BUTTON_RIGHT&&ms>1){
 		int c=0;
 		unsigned long long d=-1ULL;
 		for(int i=0;i<ms-1;i++){
@@ -61,7 +61,7 @@ void GLFWCALL mcb(int b,int a){
 				d=h;
 			}
 		}
-		memmove(X+c,X+c+1,((ms-=1)-c)*sizeof(float));
+		memmove(X+c,X+c+1,(--ms-c)*sizeof(float));
 		memmove(Y+c,Y+c+1,(ms-c)*sizeof(float));
 		memmove(F+c,F+c+1,(ms-c)*sizeof(float));
 		X[ms]=Y[ms]=F[ms]=0;
@@ -103,11 +103,12 @@ int main(int argc,char**argv){
 				int i=0;
 				#ifdef __SSE2__
 				__m128 D=_mm_setzero_ps();
-				float f[4]__attribute__((aligned(16)));
 				do{
-					for(int j=0;j<4;j++)f[j]=(X[i+j]-x)*(X[i+j]-x)+(Y[i+j]-y)*(Y[i+j]-y);
-					D=_mm_add_ps(D,_mm_mul_ps(_mm_load_ps(F+i),_mm_rsqrt_ps(_mm_load_ps(f))));
+					__m128 xx=_mm_sub_ps(_mm_load_ps(X+i),_mm_set1_ps(x));
+					__m128 yy=_mm_sub_ps(_mm_load_ps(Y+i),_mm_set1_ps(y));
+					D=_mm_add_ps(D,_mm_mul_ps(_mm_load_ps(F+i),_mm_rsqrt_ps(_mm_add_ps(_mm_mul_ps(xx,xx),_mm_mul_ps(yy,yy)))));
 				}while((i+=4)<ms);
+				float f[4]__attribute__((aligned(16)));
 				_mm_store_ps(f,D);
 				d=f[0]+f[1]+f[2]+f[3];
 				#else
