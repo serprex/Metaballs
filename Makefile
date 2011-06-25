@@ -1,2 +1,7 @@
+ifeq ($(NOBENCH),)
+B=-DBENCH
+else
+B=
+endif
 all:meta.c
-	gcc -Dbench -std=gnu99 -g -fwhole-program -O3 -ffast-math -lglfw -fopenmp -march=native meta.c -o meta
+	gcc -std=gnu99 -fwhole-program -O2 -ffast-math -lglfw -fopenmp -march=native meta.c -o meta ${B}

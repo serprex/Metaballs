@@ -1,16 +1,12 @@
 #define _GNU_SOURCE
 #include <GL/glfw.h>
-#ifdef stdalloc
 #include <stdlib.h>
-#else
-#include <sys/unistd.h>
-#include <sys/mman.h>
-#endif
 #include <string.h>
-#ifdef bench
+#include <stdint.h>
+#ifdef BENCH
 #include <stdio.h>
 #endif
-#ifdef __SSE2__
+#ifdef __SSE__
 #include <xmmintrin.h>
 #else
 #ifndef x5f3759df
@@ -21,31 +17,20 @@ static float rsqrt(float x){
 	int i=0x5f3759df-(*(int*)&x>>1);
 	return*(float*)&i;
 #else
-	return 1./sqrtf(x);
+	return 1f/sqrtf(x);
 #endif
 }
 #endif
-#ifndef WID
-#define WID 768
-#endif
-#ifndef HEI
-#define HEI 768
-#endif
-unsigned char manor[HEI][WID][3];
+uint8_t*manor;
 float*F,*X,*Y;
-unsigned ms=1,psz;
+uint_fast16_t ms=1,WID,HEI;
+int psz;
 void GLFWCALL mcb(int b,int a){
 	if(a==GLFW_PRESS&&b==GLFW_MOUSE_BUTTON_LEFT){
 		if(ms*sizeof(float)>=psz){
-		#ifdef stdalloc
-			X=realloc(X,psz+=psz);
-			Y=realloc(Y,psz+=psz);
+			X=realloc(X,psz<<=1);
+			Y=realloc(Y,psz);
 			F=realloc(F,psz);
-		#else
-			X=mremap(X,psz,psz<<=1,0);
-			Y=mremap(Y,psz,psz<<=1,0);
-			F=mremap(F,psz>>1,psz,0);
-		#endif
 		}
 		X[ms]=X[ms-1];
 		Y[ms]=Y[ms-1];
@@ -53,9 +38,9 @@ void GLFWCALL mcb(int b,int a){
 		ms++;
 	}else if(a==GLFW_PRESS&&b==GLFW_MOUSE_BUTTON_RIGHT&&ms>1){
 		int c=0;
-		unsigned long long d=-1ULL;
+		float d=WID*WID+HEI*HEI;
 		for(int i=0;i<ms-1;i++){
-			int h=(X[i]-X[ms-1])*(X[i]-X[ms-1])+(Y[i]-Y[ms-1])*(Y[i]-Y[ms-1]);
+			float h=(X[i]-X[ms-1])*(X[i]-X[ms-1])+(Y[i]-Y[ms-1])*(Y[i]-Y[ms-1]);
 			if(h<d){
 				c=i;
 				d=h;
@@ -69,19 +54,19 @@ void GLFWCALL mcb(int b,int a){
 }
 int main(int argc,char**argv){
 	glfwInit();
-	if(!glfwOpenWindow(WID,HEI,0,0,0,0,0,0,GLFW_WINDOW))return 1;
+	GLFWvidmode vm;
+	glfwGetDesktopMode(&vm);
+	WID=vm.Width;
+	HEI=vm.Height;
+	glfwOpenWindow(vm.Width,vm.Height,vm.RedBits,vm.GreenBits,vm.BlueBits,0,0,0,GLFW_WINDOW);
 	glfwSetMouseButtonCallback(mcb);
 	glOrtho(0,WID,HEI,0,1,-1);
 	glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-	#ifdef stdalloc
-	X=calloc(1,psz=1000);
+	manor=malloc(HEI*WID*3);
+	X=calloc(1,psz=2000);
 	Y=calloc(1,psz);
 	F=calloc(1,psz);
-	#else
-	X=mmap(0,psz=sysconf(_SC_PAGE_SIZE),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
-	Y=mmap(0,psz,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
-	F=mmap(0,psz,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
-	#endif
+	F[0]=psz;
 	unsigned char col[256][3];
 	for(int i=0;i<256;i++){
 		col[i][0]=i*i*i>>16;
@@ -93,19 +78,18 @@ int main(int argc,char**argv){
 		glfwGetMousePos(&x,&y);
 		X[ms-1]=x;
 		Y[ms-1]=y;
-		#ifdef bench
+		#ifdef BENCH
 		double t=glfwGetTime();
 		#endif
-		#pragma omp parallel for schedule(dynamic)
+		#pragma omp parallel for schedule(static)
 		for(int y=0;y<HEI;y++)
 			for(int x=0;x<WID;x++){
 				float d=0;
 				int i=0;
-				#ifdef __SSE2__
+				#ifdef __SSE__
 				__m128 D=_mm_setzero_ps();
 				do{
-					__m128 xx=_mm_sub_ps(_mm_load_ps(X+i),_mm_set1_ps(x));
-					__m128 yy=_mm_sub_ps(_mm_load_ps(Y+i),_mm_set1_ps(y));
+					__m128 xx=_mm_sub_ps(_mm_load_ps(X+i),_mm_set1_ps(x)),yy=_mm_sub_ps(_mm_load_ps(Y+i),_mm_set1_ps(y));
 					D=_mm_add_ps(D,_mm_mul_ps(_mm_load_ps(F+i),_mm_rsqrt_ps(_mm_add_ps(_mm_mul_ps(xx,xx),_mm_mul_ps(yy,yy)))));
 				}while((i+=4)<ms);
 				float f[4]__attribute__((aligned(16)));
@@ -114,10 +98,10 @@ int main(int argc,char**argv){
 				#else
 				do d+=F[i]*rsqrt((X[i]-x)*(X[i]-x)+(Y[i]-y)*(Y[i]-y)); while(++i<ms);
 				#endif
-				memcpy(manor[HEI-1-y][x],col[d>255?255:d<0?0:(unsigned char)d],3);
+				memcpy(manor+((HEI-1-y)*WID+x)*3,col[d>255?255:d<0?0:(unsigned char)d],3);
 			}
-		#ifdef bench
-		printf("%d %f\n",ms,glfwGetTime()-t);
+		#ifdef BENCH
+		printf("%d %d\n",ms,glfwGetTime()-t);
 		#endif
 		glDrawPixels(WID,HEI,GL_RGB,GL_UNSIGNED_BYTE,manor);
 		glfwSwapBuffers();
