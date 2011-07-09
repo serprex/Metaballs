@@ -12,7 +12,7 @@
 #ifndef x5f3759df
 #include <math.h>
 #endif
-static float rsqrt(float x){
+float rsqrt(float x){
 #ifdef x5f3759df
 	int i=0x5f3759df-(*(int*)&x>>1);
 	return*(float*)&i;
