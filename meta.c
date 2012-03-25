@@ -3,9 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#ifdef BENCH
-#include <stdio.h>
-#endif
 #ifdef __SSE__
 #include <xmmintrin.h>
 #else
@@ -78,9 +75,6 @@ int main(int argc,char**argv){
 		glfwGetMousePos(&x,&y);
 		X[ms-1]=x;
 		Y[ms-1]=y;
-		#ifdef BENCH
-		double t=glfwGetTime();
-		#endif
 		#pragma omp parallel for schedule(static)
 		for(int y=0;y<HEI;y++)
 			for(int x=0;x<WID;x++){
@@ -100,9 +94,6 @@ int main(int argc,char**argv){
 				#endif
 				memcpy(manor+((HEI-1-y)*WID+x)*3,col[d>255?255:d<0?0:(unsigned char)d],3);
 			}
-		#ifdef BENCH
-		printf("%d %d\n",ms,glfwGetTime()-t);
-		#endif
 		glDrawPixels(WID,HEI,GL_RGB,GL_UNSIGNED_BYTE,manor);
 		glfwSwapBuffers();
 		F[ms-1]+=glfwGetMouseWheel()<<8;
