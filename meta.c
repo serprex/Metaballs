@@ -1,5 +1,5 @@
 #define _GNU_SOURCE
-#include <GL/glfw.h>
+#include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -22,7 +22,7 @@ uint8_t*manor;
 float*F,*X,*Y;
 uint_fast16_t ms=1,WID,HEI;
 int psz;
-void GLFWCALL mcb(int b,int a){
+void mcb(GLFWwindow*wnd,int b,int a,int m){
 	if(a==GLFW_PRESS&&b==GLFW_MOUSE_BUTTON_LEFT){
 		if(ms*sizeof(float)>=psz){
 			X=realloc(X,psz<<=1);
@@ -49,14 +49,19 @@ void GLFWCALL mcb(int b,int a){
 		X[ms]=Y[ms]=F[ms]=0;
 	}
 }
+void scb(GLFWwindow*wnd,double x,double y)
+{
+	F[ms-1]+=(x+y)*512;
+}
 int main(int argc,char**argv){
 	glfwInit();
-	GLFWvidmode vm;
-	glfwGetDesktopMode(&vm);
-	WID=vm.Width;
-	HEI=vm.Height;
-	glfwOpenWindow(vm.Width,vm.Height,vm.RedBits,vm.GreenBits,vm.BlueBits,0,0,0,GLFW_WINDOW);
-	glfwSetMouseButtonCallback(mcb);
+	const GLFWvidmode*vm=glfwGetVideoMode(glfwGetPrimaryMonitor());
+	WID=vm->width;
+	HEI=vm->height;
+	GLFWwindow*wnd=glfwCreateWindow(WID,HEI,0,0,0);
+	glfwMakeContextCurrent(wnd);
+	glfwSetMouseButtonCallback(wnd,mcb);
+	glfwSetScrollCallback(wnd,scb);
 	glOrtho(0,WID,HEI,0,1,-1);
 	glPixelStorei(GL_UNPACK_ALIGNMENT,1);
 	manor=malloc(HEI*WID*3);
@@ -71,8 +76,8 @@ int main(int argc,char**argv){
 		col[i][2]=i;
 	}
 	for(;;){
-		int x,y;
-		glfwGetMousePos(&x,&y);
+		double x,y;
+		glfwGetCursorPos(wnd,&x,&y);
 		X[ms-1]=x;
 		Y[ms-1]=y;
 		#pragma omp parallel for schedule(static)
@@ -95,9 +100,8 @@ int main(int argc,char**argv){
 				memcpy(manor+((HEI-1-y)*WID+x)*3,col[d>255?255:d<0?0:(unsigned char)d],3);
 			}
 		glDrawPixels(WID,HEI,GL_RGB,GL_UNSIGNED_BYTE,manor);
-		glfwSwapBuffers();
-		F[ms-1]+=glfwGetMouseWheel()<<8;
-		glfwSetMouseWheel(0);
-		if(glfwGetKey(GLFW_KEY_ESC)||!glfwGetWindowParam(GLFW_OPENED))return 0;
+		glfwSwapBuffers(wnd);
+		glfwPollEvents();
+		if(glfwGetKey(wnd,GLFW_KEY_ESCAPE)||glfwWindowShouldClose(wnd))return 0;
 	}
 }
