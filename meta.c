@@ -58,7 +58,7 @@ int main(int argc,char**argv){
 	const GLFWvidmode*vm=glfwGetVideoMode(glfwGetPrimaryMonitor());
 	WID=vm->width;
 	HEI=vm->height;
-	GLFWwindow*wnd=glfwCreateWindow(WID,HEI,0,0,0);
+	GLFWwindow*wnd=glfwCreateWindow(WID,HEI,"",0,0);
 	glfwMakeContextCurrent(wnd);
 	glfwSetMouseButtonCallback(wnd,mcb);
 	glfwSetScrollCallback(wnd,scb);
@@ -91,9 +91,8 @@ int main(int argc,char**argv){
 					__m128 xx=_mm_sub_ps(_mm_load_ps(X+i),_mm_set1_ps(x)),yy=_mm_sub_ps(_mm_load_ps(Y+i),_mm_set1_ps(y));
 					D=_mm_add_ps(D,_mm_mul_ps(_mm_load_ps(F+i),_mm_rsqrt_ps(_mm_add_ps(_mm_mul_ps(xx,xx),_mm_mul_ps(yy,yy)))));
 				}while((i+=4)<ms);
-				float f[4]__attribute__((aligned(16)));
-				_mm_store_ps(f,D);
-				d=f[0]+f[1]+f[2]+f[3];
+				const __m128 f = _mm_add_ps(D,_mm_movehl_ps(D,D));
+				_mm_store_ss(&d,_mm_add_ss(f,_mm_shuffle_ps(f,f,1)));
 				#else
 				do d+=F[i]*rsqrt((X[i]-x)*(X[i]-x)+(Y[i]-y)*(Y[i]-y)); while(++i<ms);
 				#endif
